@@ -1,5 +1,5 @@
 # module directories
-MDirs = ./Main ./FSP ./Disk ./BlockManager $(foreach D, ./Elements, $(wildcard $(D)/*))
+MDirs = ./Main ./FSP ./Disk ./BlockManager $(foreach D, ./Elements, $(wildcard $(D)/*)) ./Interface
 Binaries = FSProc
 Libs = pthread
 # compiler

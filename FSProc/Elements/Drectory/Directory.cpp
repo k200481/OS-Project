@@ -48,33 +48,30 @@ DirPtr Directory::CreateRoot(BlockManager& bm, int root_uid, int rootdir_permiss
 
 bool Directory::AddDirectory(BlockManager& bm, const char* name, int owner, int permissions)
 {
-    if(EntryExists(bm, name))
-        return false;
-    // create directory
-    Directory new_dir(bm, owner, permissions);
-    // add entry in current directory
-    Entry e;
-    strncpy(e.name, name, MaxNameLen);
-    e.block_num = new_dir.inode_block;
-    inode.Write(bm, inode_block, inode.GetSize(), &e, sizeof(Entry));
-    // update num_entries
-    num_entries++;
-    inode.Write(bm, inode_block, 0, &num_entries, sizeof(int));
-    return true;
+    Add(bm, name, ElementType::Directory, owner, permissions);
 }
 
 bool Directory::AddFile(BlockManager& bm, const char* name, int owner, int permissions)
 {
+    Add(bm, name, ElementType::File, owner, permissions);
+}
+
+bool Directory::Add(BlockManager& bm, const char* name, ElementType t, int owner, int permissions)
+{
     if(EntryExists(bm, name))
         return false;
-    // create file
-    File new_file(bm, owner, permissions);
-    // add entry in current directory
+
     Entry e;
+    if(t == ElementType::Directory)
+        e.block_num = Directory(bm, owner, permissions).inode_block;
+    else
+        e.block_num = File(bm, owner, permissions).inode_block;
+    
+    if(e.block_num == 0)
+        return false;
+    
     strncpy(e.name, name, MaxNameLen);
-    e.block_num = new_file.inode_block;
     inode.Write(bm, inode_block, inode.GetSize(), &e, sizeof(Entry));
-    // update num_entries
     num_entries++;
     inode.Write(bm, inode_block, 0, &num_entries, sizeof(int));
     return true;

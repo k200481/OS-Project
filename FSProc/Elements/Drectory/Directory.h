@@ -25,6 +25,7 @@ namespace FS
 
 		bool AddDirectory(BlockManager& bm, const char* name, int owner, int permissions);
 		bool AddFile(BlockManager& bm, const char* name, int owner, int permissions);
+        bool Add(BlockManager& bm, const char* name, ElementType t, int owner, int permissions);
 
 		unsigned int GetNumEntries() const;
 

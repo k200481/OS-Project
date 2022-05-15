@@ -10,8 +10,6 @@ namespace FS
 	{
 		friend class Directory;
 	public:
-		File(File&& rhs) noexcept;
-
 		int Read(BlockManager& bm, char* data, int offset, int size) const;
 		int Write(BlockManager& bm, const char* data, int offset, int size);
 
@@ -24,11 +22,6 @@ namespace FS
         {
             return std::make_unique<File>(File(bm, inode_block));
         }
-
-	private:
-		mutable int reader_count = 0;
-		mutable std::mutex rw_mtx;
-		mutable std::mutex mtx;
 	};
 }
 

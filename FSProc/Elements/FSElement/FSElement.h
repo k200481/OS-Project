@@ -2,6 +2,7 @@
 
 #include <BlockManager.h>
 #include <Inode.h>
+#include <mutex>
 
 namespace FS
 {
@@ -22,9 +23,21 @@ namespace FS
 		FSElement();
 		FSElement(BlockManager& bm, unsigned int inode_block);
 		FSElement(BlockManager& bm, ElementType type, int owner, int permissions);
+        FSElement(FSElement&& rhs) noexcept;
+
+        void BeginRead(BlockManager& bm) const;
+        void BeginRead() const;
+        void EndRead() const;
+        void BeginWrite(BlockManager& bm) const;
+        void BeginWrite() const;
+        void EndWrite() const;
 
 	protected:
 		mutable Inode inode;
 		unsigned int inode_block;
+    private:
+        mutable int reader_count = 0;
+		mutable std::mutex rw_mtx;
+		mutable std::mutex mtx;
 	};
 }

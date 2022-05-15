@@ -18,7 +18,7 @@ namespace FS
         Directory(const Directory& rhs) = delete;
         Directory& operator=(const Directory& rhs) = delete;
         // move constructor
-        Directory(Directory&& d);
+        Directory(Directory&& d) = default;
 
         static DirPtr CreateRoot(BlockManager& bm, int root_uid, int rootdir_permissions);
         static DirPtr LoadRoot(BlockManager& bm);
@@ -33,24 +33,7 @@ namespace FS
 
 		DirPtr OpenSubdir(BlockManager& bm, const std::string& filename);
 		FilePtr OpenFile(BlockManager& bm, const std::string& filename);
-
-        FSElementPtr Open(BlockManager& bm, const std::string& filename)
-        {
-            Entry* entry_list = new Entry[num_entries];
-            inode.Read(bm, sizeof(int), entry_list, sizeof(Entry) * num_entries);
-            for(int i = 0; i < num_entries; i++)
-            {
-                if(entry_list[i].name == filename)
-                {
-                    Inode inode = Inode::Load(bm, entry_list[i].block_num);
-                    if(inode.GetType() == ElementType::File)
-                        return File::Load(bm, inode_block);
-                    else if(inode.GetType() == ElementType::Directory)
-                        return Directory::Load(bm, entry_list[i].block_num);
-                }
-            }
-            return FSElementPtr();
-        }
+        FSElementPtr Open(BlockManager& bm, const std::string& filename);
 
 	private:
         Directory(BlockManager& bm, unsigned int inode_block);
@@ -63,9 +46,6 @@ namespace FS
 
 	private:
 		int num_entries = 0;
-        mutable int reader_count = 0;
-        mutable std::mutex mtx;
-        mutable std::mutex rw_mtx;
 	};
 }
 

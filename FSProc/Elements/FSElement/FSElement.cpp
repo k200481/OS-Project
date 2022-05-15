@@ -1,4 +1,4 @@
-#include "FSElement.h"
+#include <FSElement.h>
 #include <Inode.h>
 using namespace FS;
 
@@ -19,6 +19,15 @@ FSElement::FSElement(BlockManager& bm, ElementType type, int owner, int permissi
 {
     inode_block = bm.AlloateFreeBlock();
     inode = Inode::Create(bm, inode_block, type, owner, permissions);
+}
+
+FSElement::FSElement(FSElement&& rhs) noexcept
+{
+    std::unique_lock<std::mutex> lock1(rw_mtx);
+    std::unique_lock<std::mutex> lock2(mtx);
+    reader_count = rhs.reader_count;
+    inode = std::move(rhs.inode);
+    inode_block = rhs.inode_block;
 }
 
 ElementType FSElement::GetType() const
@@ -64,4 +73,48 @@ int FSElement::GetTimeModified() const
 int FSElement::GetTimeAccessed() const
 {
     return inode.mtd.accessed;
+}
+
+void FSElement::BeginRead(BlockManager& bm) const
+{
+    mtx.lock();
+    if(reader_count == 0)
+        rw_mtx.lock();
+    reader_count++;
+    inode.UpdateTimeAccessed(bm, inode_block);
+    mtx.unlock();
+}
+
+void FSElement::BeginRead() const
+{
+    mtx.lock();
+    if(reader_count == 0)
+        rw_mtx.lock();
+    reader_count++;
+    mtx.unlock();
+}
+
+void FSElement::EndRead() const
+{
+    mtx.lock();
+    reader_count--;
+    if(reader_count == 0)
+        rw_mtx.unlock();
+    mtx.unlock();
+}
+
+void FSElement::BeginWrite(BlockManager& bm) const
+{
+    rw_mtx.lock();
+    inode.UpdateTimeModified(bm, inode_block);
+}
+
+void FSElement::BeginWrite() const
+{
+    rw_mtx.lock();
+}
+
+void FSElement::EndWrite() const
+{
+    rw_mtx.unlock();
 }

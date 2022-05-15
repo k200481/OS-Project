@@ -19,16 +19,6 @@ Directory::Directory(BlockManager& bm, int owner, int permissions)
     inode.Write(bm, inode_block, 0, &num_entries, sizeof(int));
 }
 
-Directory::Directory(Directory&& rhs)
-{
-    std::unique_lock<std::mutex> lock1(mtx);
-    std::unique_lock<std::mutex> lock2(rw_mtx);
-    inode = std::move(rhs.inode);
-    inode_block = rhs.inode_block;
-    num_entries = rhs.num_entries;
-    reader_count = rhs.reader_count;
-}
-
 DirPtr Directory::Load(BlockManager& bm, unsigned int inode_block)
 {
     return std::make_unique<Directory>(Directory(bm, inode_block));
@@ -61,6 +51,8 @@ bool Directory::Add(BlockManager& bm, const char* name, ElementType t, int owner
     if(EntryExists(bm, name))
         return false;
 
+    BeginWrite(bm);
+
     Entry e;
     if(t == ElementType::Directory)
         e.block_num = Directory(bm, owner, permissions).inode_block;
@@ -74,18 +66,25 @@ bool Directory::Add(BlockManager& bm, const char* name, ElementType t, int owner
     inode.Write(bm, inode_block, inode.GetSize(), &e, sizeof(Entry));
     num_entries++;
     inode.Write(bm, inode_block, 0, &num_entries, sizeof(int));
+
+    EndWrite();
     return true;
 }
 
 unsigned int Directory::GetNumEntries() const
 {
-    return num_entries;
+    BeginRead();
+    int num = num_entries;
+    EndRead();
+
+    return num;
 }
 
 std::vector<data_pair> FS::Directory::List(BlockManager& bm) const
 {
-    inode.UpdateTimeAccessed(bm, inode_block);
-    
+    // updating access time is a write operation
+    BeginRead(bm);
+
     std::vector<data_pair> entries(num_entries);
     int offset = sizeof(num_entries);
 
@@ -99,11 +98,15 @@ std::vector<data_pair> FS::Directory::List(BlockManager& bm) const
 
         offset += sizeof(Entry);
     }
+
+    EndRead();
+
     return entries;
 }
 
 DirPtr Directory::OpenSubdir(BlockManager& bm, const std::string& filename)
 {
+    BeginRead(bm);
     for (int i = 0; i < num_entries; i++)
     {
         Entry e = GetEntry(bm, i);
@@ -114,11 +117,14 @@ DirPtr Directory::OpenSubdir(BlockManager& bm, const std::string& filename)
                 return Directory::Load(bm, e.block_num);
         }
     }
+    EndRead();
+
     return DirPtr();
 }
 
 FilePtr FS::Directory::OpenFile(BlockManager& bm, const std::string& filename)
 {
+    BeginRead(bm);
     for (int i = 0; i < num_entries; i++)
     {
         Entry e = GetEntry(bm, i);
@@ -129,7 +135,29 @@ FilePtr FS::Directory::OpenFile(BlockManager& bm, const std::string& filename)
                 return File::Load(bm, inode_block);
         }
     }
-    throw FilePtr();
+    EndRead();
+
+    return FilePtr();
+}
+
+FSElementPtr Directory::Open(BlockManager& bm, const std::string& filename)
+{
+    Entry* entry_list = new Entry[num_entries];
+    BeginRead(bm);
+    inode.Read(bm, sizeof(int), entry_list, sizeof(Entry) * num_entries);
+    for(int i = 0; i < num_entries; i++)
+    {
+        if(entry_list[i].name == filename)
+        {
+            Inode inode = Inode::Load(bm, entry_list[i].block_num);
+            if(inode.GetType() == ElementType::File)
+                return File::Load(bm, inode_block);
+            else if(inode.GetType() == ElementType::Directory)
+                return Directory::Load(bm, entry_list[i].block_num);
+        }
+    }
+    EndRead();
+    return FSElementPtr();
 }
 
 Directory::Entry Directory::GetEntry(const BlockManager& bm, unsigned int idx) const

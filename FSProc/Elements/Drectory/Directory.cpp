@@ -151,7 +151,7 @@ FSElementPtr Directory::Open(BlockManager& bm, const std::string& filename)
         {
             Inode inode = Inode::Load(bm, entry_list[i].block_num);
             if(inode.GetType() == ElementType::File)
-                return File::Load(bm, inode_block);
+                return File::Load(bm, entry_list[i].block_num);
             else if(inode.GetType() == ElementType::Directory)
                 return Directory::Load(bm, entry_list[i].block_num);
         }

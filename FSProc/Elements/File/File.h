@@ -6,23 +6,14 @@
 
 namespace FS
 {
-	enum class SeekBase
-	{
-		Set,
-		Cur,
-		End
-	};
-
 	class File : public FSElement
 	{
 		friend class Directory;
 	public:
 		File(File&& rhs) noexcept;
 
-		int Read(BlockManager& bm, char* data, int size) const;
-		int Write(BlockManager& bm, const char* data, int size);
-		void Seek(SeekBase base, int offset_in);
-		unsigned int GetOffset() const;
+		int Read(BlockManager& bm, char* data, int offset, int size) const;
+		int Write(BlockManager& bm, const char* data, int offset, int size);
 
 	private: // only Directory can make a new file
 		File(BlockManager& bm, unsigned int inode_block);
@@ -35,7 +26,6 @@ namespace FS
         }
 
 	private:
-		mutable unsigned int offset = 0;
 		mutable int reader_count = 0;
 		mutable std::mutex rw_mtx;
 		mutable std::mutex mtx;

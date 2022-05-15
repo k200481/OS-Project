@@ -21,11 +21,10 @@ FS::File::File(File&& rhs) noexcept
     std::unique_lock<std::mutex> lock2(rw_mtx); // might be unnecessary actually
     inode = std::move(rhs.inode);
     inode_block = rhs.inode_block;
-    offset = rhs.offset;
     reader_count = rhs.reader_count;
 }
 
-int File::Read(BlockManager& bm, char* data, int size) const
+int File::Read(BlockManager& bm, char* data, int offset, int size) const
 {
     mtx.lock();
     if(reader_count == 0)
@@ -35,7 +34,6 @@ int File::Read(BlockManager& bm, char* data, int size) const
     mtx.unlock();
 
     int num = inode.Read(bm, offset, data, size);
-    offset += num;
 
     mtx.lock();
     reader_count--;
@@ -46,43 +44,12 @@ int File::Read(BlockManager& bm, char* data, int size) const
     return num;
 }
 
-int File::Write(BlockManager& bm, const char* data, int size)
+int File::Write(BlockManager& bm, const char* data, int offset, int size)
 {
     rw_mtx.lock();
     int num = inode.Write(bm, inode_block, offset, data, size);
-    offset += num;
     inode.UpdateTimeModified(bm, inode_block);
     rw_mtx.unlock();
     
     return num;
-}
-
-void FS::File::Seek(SeekBase base, int offset_in)
-{
-    const unsigned int size = inode.GetSize();
-    
-    if (base == SeekBase::Set)
-        offset = 0;
-    else if (base == SeekBase::End)
-        offset = size;
-
-    mtx.lock();
-    offset += offset_in;
-    if (offset > size)
-    {
-        if (offset_in > 0)
-            offset = size;
-        else
-            offset = 0;
-    }
-    mtx.unlock();
-}
-
-unsigned int FS::File::GetOffset() const
-{
-    mtx.lock();
-    const auto ret = offset;
-    mtx.unlock();
-
-    return ret;
 }

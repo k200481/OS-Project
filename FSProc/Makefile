@@ -1,6 +1,6 @@
 # module directories
 MDirs = ./Main ./FSP ./Disk ./BlockManager $(foreach D, ./Elements, $(wildcard $(D)/*))
-Binaries = bin/FSProc
+Binaries = FSProc
 Libs = pthread
 # compiler
 CC = g++
@@ -30,7 +30,7 @@ list:
 .PHONY: clean
 
 clean:
-	rm -rf $(Binaries) $(OFiles) $(DFiles) null.d
+	rm -rf $(Binaries) $(OFiles) $(DFiles) null.d bin
 
 # magic
 -include $(DFiles)

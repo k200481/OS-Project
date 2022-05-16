@@ -3,6 +3,7 @@
 
 namespace FS
 {
+    // max file name
     static constexpr int MaxNameLen = 255;
 
 	enum class ElementType

@@ -6,9 +6,13 @@ using namespace FS;
 
 Inode Inode::Load(const BlockManager& bm, unsigned int block_num)
 {
+    // create a default inode
 	Inode in;
+    // create an empty block to write to disk
 	char buf[Disk::BlockSize];
+    // read thwe inode from the disk into the block
 	bm.Read(block_num, &buf);
+    // copy the inode data into the inode
 	memcpy(&in, buf, sizeof(Inode));
 	return in;
 }
@@ -16,13 +20,16 @@ Inode Inode::Load(const BlockManager& bm, unsigned int block_num)
 Inode Inode::Create(BlockManager& bm, unsigned int block_num, 
 	ElementType type, int owner, int permissions)
 {
+    // create a default inode
 	Inode in;
+    // create an empty block
 	char buf[Disk::BlockSize] = {};
 	
 	// init default metadata struct
 	const time_t t = time(NULL);
 	in.mtd = { type, owner, permissions, 0, t, t, t };
 
+    // copy the inode onto the block and write it to disk
 	memcpy(&buf, &in, sizeof(Inode));
 	bm.Write(block_num, buf);
 	return in;
@@ -135,13 +142,15 @@ Inode::Metadata Inode::GetMetadata() const
 
 void FS::Inode::AddNewBlock(BlockManager& bm, unsigned int inode_block)
 {
+    // allocate a block
 	const unsigned int block_num = bm.AlloateFreeBlock();
 	
+    // if there are direct blocks left to be allocated allocate one
 	if (num_blocks < NumDirectBlocks)
 	{
 		blocks[num_blocks++] = block_num;
 	}
-	else if (num_blocks < NumDirectBlocks + NumIndirectBlocks)
+	else if (num_blocks < NumDirectBlocks + NumIndirectBlocks) // otherwise allocate an indirect block
 	{
 		// allocate indir block if it doesn't exist
 		if (indir == 0)
@@ -156,7 +165,7 @@ void FS::Inode::AddNewBlock(BlockManager& bm, unsigned int inode_block)
 		bm.Write(indir, buf);
 		num_blocks++;
 	}
-
+    // update the inode on the disk
 	Save(bm, inode_block);
 }
 

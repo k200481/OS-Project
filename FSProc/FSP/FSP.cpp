@@ -2,13 +2,6 @@
 #include <iostream>
 #include <sstream>
 
-#include <File.h>
-#include <thread>
-
-#include <algorithm>
-#include <iterator>
-#include <stack>
-
 FSP::FSP()
 	:
 	inf(filename)

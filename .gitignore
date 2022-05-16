@@ -3,3 +3,5 @@ FSProc/.vscode/dryrun.log
 FSProc/.vscode/settings.json
 FSProc/.vscode/targets.log
 FSProc/TestFile
+*.d
+*.o

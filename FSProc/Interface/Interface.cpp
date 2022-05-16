@@ -24,10 +24,7 @@ Interface::Interface(const std::string& disk_filename)
 
 void Interface::Init()
 {
-    auto root = FS::Directory::CreateRoot(bm, 0, 0x22);
-	root->AddDirectory(bm, "home", 0, 0x66);
-    auto home = root->OpenSubdir(bm, "home");
-    home->AddDirectory(bm, "default", 0, 0x66);
+    auto root = FS::Directory::CreateRoot(bm, 0, 0x6);
     opened.push_back(MasterFCB{
         .path_str = "/",
         .ptr = std::move(root),

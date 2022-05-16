@@ -52,7 +52,7 @@ int Interface::Open(const std::string& path)
         if(opened[cur_idx].ptr->GetType() != FS::ElementType::Directory)
         {
             std::ostringstream oss;
-            oss << new_path << " is not a directory\n";
+            oss << new_path << " is not a directory";
             last_error = oss.str();
             error = true;
             break;
@@ -68,7 +68,7 @@ int Interface::Open(const std::string& path)
             if(ptr.get() == nullptr)
             {
                 std::ostringstream oss;
-                oss << new_path << " does not exist\n";
+                oss << new_path << " does not exist";
                 last_error = oss.str();
                 error = true;
                 break;
@@ -122,7 +122,7 @@ void Interface::Add(int idx, const std::string& name,
     if(opened[idx].ptr->GetType() != ElementType::Directory)
     {
         std::ostringstream oss;
-        oss << opened[idx].path_str << " is not a directory\n";
+        oss << opened[idx].path_str << " is not a directory";
         last_error = oss.str();
         return;
     }
@@ -134,6 +134,20 @@ void Interface::Add(int idx, const std::string& name,
 void Interface::Remove(int idx, const std::string& name)
 {
     // yet to be implemented on a lower level
+}
+
+std::vector<data_pair> Interface::List(int idx)
+{
+    if(opened[idx].ptr->GetType() != ElementType::Directory)
+    {
+        std::ostringstream oss;
+        oss << opened[idx].path_str << " is not a directory";
+        last_error = oss.str();
+        return std::vector<data_pair>();
+    }
+
+    auto dir_ptr = (Directory*)(opened[idx].ptr.get());
+    return dir_ptr->List(bm);
 }
 
 int Interface::Read(int idx, char* data, int offset, int data_size)

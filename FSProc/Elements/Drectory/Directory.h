@@ -23,16 +23,12 @@ namespace FS
         static DirPtr CreateRoot(BlockManager& bm, int root_uid, int rootdir_permissions);
         static DirPtr LoadRoot(BlockManager& bm);
 
-		bool AddDirectory(BlockManager& bm, const char* name, int owner, int permissions);
-		bool AddFile(BlockManager& bm, const char* name, int owner, int permissions);
         bool Add(BlockManager& bm, const char* name, ElementType t, int owner, int permissions);
 
 		unsigned int GetNumEntries() const;
 
 		std::vector<data_pair> List(BlockManager& bm) const;
 
-		DirPtr OpenSubdir(BlockManager& bm, const std::string& filename);
-		FilePtr OpenFile(BlockManager& bm, const std::string& filename);
         FSElementPtr Open(BlockManager& bm, const std::string& filename);
 
 	private:

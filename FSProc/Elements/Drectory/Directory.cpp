@@ -36,16 +36,6 @@ DirPtr Directory::CreateRoot(BlockManager& bm, int root_uid, int rootdir_permiss
     return std::make_unique<Directory>(Directory(bm, root_uid, rootdir_permissions));
 }
 
-bool Directory::AddDirectory(BlockManager& bm, const char* name, int owner, int permissions)
-{
-    Add(bm, name, ElementType::Directory, owner, permissions);
-}
-
-bool Directory::AddFile(BlockManager& bm, const char* name, int owner, int permissions)
-{
-    Add(bm, name, ElementType::File, owner, permissions);
-}
-
 bool Directory::Add(BlockManager& bm, const char* name, ElementType t, int owner, int permissions)
 {
     if(EntryExists(bm, name))
@@ -102,42 +92,6 @@ std::vector<data_pair> FS::Directory::List(BlockManager& bm) const
     EndRead();
 
     return entries;
-}
-
-DirPtr Directory::OpenSubdir(BlockManager& bm, const std::string& filename)
-{
-    BeginRead(bm);
-    for (int i = 0; i < num_entries; i++)
-    {
-        Entry e = GetEntry(bm, i);
-        if (filename == e.name)
-        {
-            Inode in = Inode::Load(bm, e.block_num);
-            if (in.GetMetadata().type == ElementType::Directory)
-                return Directory::Load(bm, e.block_num);
-        }
-    }
-    EndRead();
-
-    return DirPtr();
-}
-
-FilePtr FS::Directory::OpenFile(BlockManager& bm, const std::string& filename)
-{
-    BeginRead(bm);
-    for (int i = 0; i < num_entries; i++)
-    {
-        Entry e = GetEntry(bm, i);
-        if (filename == e.name)
-        {
-            Inode in = Inode::Load(bm, e.block_num);
-            if (in.GetMetadata().type == ElementType::File)
-                return File::Load(bm, inode_block);
-        }
-    }
-    EndRead();
-
-    return FilePtr();
 }
 
 FSElementPtr Directory::Open(BlockManager& bm, const std::string& filename)

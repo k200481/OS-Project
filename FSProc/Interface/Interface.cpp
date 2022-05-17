@@ -113,7 +113,7 @@ void Interface::Close(int idx)
     );
 }
 
-void Interface::Add(int idx, const std::string& name, 
+bool Interface::Add(int idx, const std::string& name, 
     ElementType t, int owner, int perissions)
 {
     if(opened[idx].ptr->GetType() != ElementType::Directory)
@@ -121,11 +121,11 @@ void Interface::Add(int idx, const std::string& name,
         std::ostringstream oss;
         oss << opened[idx].path_str << " is not a directory";
         last_error = oss.str();
-        return;
+        return false;
     }
     
     auto dir_ptr = ((Directory*)(opened[idx].ptr.get()));
-    dir_ptr->Add(bm, name.c_str(), t, owner, perissions);
+    return dir_ptr->Add(bm, name.c_str(), t, owner, perissions);
 }
 
 void Interface::Remove(int idx, const std::string& name)

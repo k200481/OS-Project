@@ -28,7 +28,7 @@ namespace FS
         void Close(int idx);
 
         // directory functions
-        void Add(int idx, const std::string& name, 
+        bool Add(int idx, const std::string& name, 
             ElementType t, int owner, int perissions);
         void Remove(int idx, const std::string& name);
         std::vector<data_pair> List(int idx);

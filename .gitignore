@@ -1,7 +1,7 @@
-FSProc/.vscode/configurationCache.log
-FSProc/.vscode/dryrun.log
-FSProc/.vscode/settings.json
-FSProc/.vscode/targets.log
+FSProc/.vscode/
+TestProc/.vscode/
 FSProc/TestFile
 *.d
 *.o
+FSProc/FSProc
+TestProc/Test

@@ -21,6 +21,8 @@ namespace FS
         int GetTimeModified() const;
         int GetTimeAccessed() const;
 
+        // good idea to make virtual destructors for classes meant to be inherited
+        virtual ~FSElement() = default;
 	protected:
         /* Pritected constructors so only derived classes can make an FSElement */
         // basically turns this into an abstract class without using virtual
@@ -34,8 +36,6 @@ namespace FS
         // move ctor to make the derived types movable
         // needed due to the mutexes being used in this class
         FSElement(FSElement&& rhs) noexcept;
-        // good idea to make virtual destructors for classes meant to be inherited
-        virtual ~FSElement() = default;
         // explicitly deleting these two for the sake of thread safety
         // copies of FSElements can lead to... not fun situations
         FSElement(const FSElement&) = delete;

@@ -92,7 +92,7 @@ struct ExitParameters
 #else
 #pragma once
 
-namespace FS_IPC
+namespace FSIPC
 {
     constexpr int MaxParamSize = sizeof(int) * 4;
     constexpr int regq_key = 12345;
@@ -109,7 +109,7 @@ namespace FS_IPC
 
     enum class Type : long
     {
-        Open,
+        Open = 1,
         Close,
         Read,
         Write,
@@ -117,7 +117,7 @@ namespace FS_IPC
         Remove,
         List,
         Exit,
-        ChangeShmId,
+        ErrorInfo
     };
 
     struct CommandBuf
@@ -158,16 +158,14 @@ namespace FS_IPC
 
     struct CreateParameters
     {
-        int f_idx;
         char etype;
-        int name_shmid;
+        int path_shmid;
         int permissions;
     };
 
     struct RemoveParameters
     {
-        int f_idx;
-        int name_shmid;
+        int path_shmid;
     };
 
     struct ListParameters
@@ -177,14 +175,15 @@ namespace FS_IPC
         int listing_shmid;
     };
 
+    struct ErrorInfoParameters
+    {
+        int buf_shmid;
+        int buf_size;
+    };
+
     struct ExitParameters
     {
         // literally empty
-    };
-
-    struct ChangeShmIdParameters
-    {
-        int new_shmid;
     };
 }
 

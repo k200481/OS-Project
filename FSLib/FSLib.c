@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
-#include <FSIPC_Structures.h>
+#include <FS_IPC.h>
 #include <string.h>
 #include <semaphore.h>
 #include <time.h>

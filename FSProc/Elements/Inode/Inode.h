@@ -41,6 +41,8 @@ namespace FS
         // calculation for which block an offset falls in is done automatically
 		unsigned int Read(const BlockManager& bm, 
             unsigned int offset, void* buf, unsigned int data_size) const;
+        // frees all allocated blocks to the inode
+        void FreeAll(BlockManager& bm, unsigned int inode_block);
 		// update the modification time in the metadata and save the inode
 		void UpdateTimeModified(BlockManager& bm, unsigned int block_num);
 		// update the access time in the metadata and save the inode

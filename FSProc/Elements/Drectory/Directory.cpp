@@ -78,21 +78,17 @@ unsigned int Directory::GetNumEntries() const
     return num;
 }
 
-std::vector<data_pair> FS::Directory::List(BlockManager& bm) const
+std::vector<std::string> FS::Directory::List(BlockManager& bm) const
 {
     BeginRead(bm);
 
-    std::vector<data_pair> entries(num_entries);
+    std::vector<std::string> entries(num_entries);
     int offset = sizeof(num_entries); // start at offset num entries
     // iterate over all entries and add them to the vector
     for (int i = 0; i < num_entries; i++)
     {
         Entry e = GetEntry(bm, i);
-        Inode in = Inode::Load(bm, e.block_num); // load the indoe to read its metadata
-
-        entries[i].first = e.name;
-        entries[i].second = in.GetMetadata();
-
+        entries[i] = e.name;
         offset += sizeof(Entry);
     }
 
@@ -130,7 +126,32 @@ FSElementPtr Directory::Open(BlockManager& bm, const std::string& filename)
     }
     EndRead();
 
+    delete[] entry_list;
     return ptr; // returns null if nothing was found
+}
+
+void Directory::Remove(BlockManager& bm, const std::string& filename)
+{
+    BeginWrite();
+    Entry* entry_list = new Entry[num_entries - 1];
+    int count = 0;
+    for(int i = 0; i < num_entries; i++)
+    {
+        Entry e = GetEntry(bm, i);
+        if(e.name != filename)
+        {
+            entry_list[count++] = e;
+        }
+    }
+
+    num_entries--;
+
+    inode.FreeAll(bm, inode_block);
+    inode.Write(bm, inode_block, 0, &num_entries, sizeof(int));
+    inode.Write(bm, inode_block, sizeof(int), entry_list, sizeof(Entry) * num_entries);
+
+    delete[] entry_list;
+    EndWrite();
 }
 
 Directory::Entry Directory::GetEntry(const BlockManager& bm, unsigned int idx) const

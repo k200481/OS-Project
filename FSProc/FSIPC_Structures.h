@@ -1,6 +1,6 @@
 #pragma once
 
-namespace FS_IPC
+namespace FSIPC
 {
     constexpr int MaxParamSize = sizeof(int) * 4;
     constexpr int regq_key = 12345;
@@ -25,6 +25,7 @@ namespace FS_IPC
         Remove,
         List,
         Exit,
+        ErrorInfo
     };
 
     struct CommandBuf
@@ -65,16 +66,14 @@ namespace FS_IPC
 
     struct CreateParameters
     {
-        int f_idx;
         char etype;
-        int name_shmid;
+        int path_shmid;
         int permissions;
     };
 
     struct RemoveParameters
     {
-        int f_idx;
-        int name_shmid;
+        int path_shmid;
     };
 
     struct ListParameters
@@ -82,6 +81,12 @@ namespace FS_IPC
         int f_idx;
         int size;
         int listing_shmid;
+    };
+
+    struct ErrorInfoParameters
+    {
+        int buf_shmid;
+        int buf_size;
     };
 
     struct ExitParameters

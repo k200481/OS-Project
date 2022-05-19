@@ -34,6 +34,22 @@ FSElement::FSElement(FSElement&& rhs) noexcept
     inode_block = rhs.inode_block;
 }
 
+void FSElement::FreeDatablocks(BlockManager& bm)
+{
+    BeginWrite();
+    inode.FreeAll(bm, inode_block);
+    inode.Save(bm, inode_block);
+    EndWrite();
+}
+
+void FSElement::FreeInodeBlock(BlockManager& bm)
+{
+    BeginWrite();
+    bm.FreeBlock(inode_block);
+    isValid = false;
+    EndWrite();
+}
+
 ElementType FSElement::GetType() const
 {
     return inode.GetType();

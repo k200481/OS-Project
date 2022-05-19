@@ -5,7 +5,7 @@
 #include <sstream>
 #include <sys/shm.h>
 
-#define FS_RETURN(val) ReturnValue(p_idx, val); return;
+#define FS_RETURN(val) ReturnValue((p_idx), (val)); return;
 
 void* RegistrationRedirect(void* params);
 void* ServiceRedirect(void* params);
@@ -14,7 +14,7 @@ FSP::FSP()
 	:
 	inf(filename)
 {
-    qid = msgget(FS_IPC::regq_key, IPC_CREAT | FS_IPC::regq_permissions);
+    qid = msgget(FSIPC::regq_key, IPC_CREAT | FSIPC::regq_permissions);
     if(qid == -1)
     {
         perror("msgget");
@@ -49,21 +49,11 @@ FSP::~FSP()
 void FSP::Run()
 {
     getchar();
-    int fd = inf.Open("/A/");
-
-    if(fd != -1)
-    {
-        const auto& list = inf.List(fd);
-        for(int i = 0; i < list.size(); i++)
-        {
-            std::cout << list[i].first << std::endl;
-        }
-    }
 }
 
 void* FSP::Registration(void* params)
 {
-    FS_IPC::RequestBuf rbuf = {};
+    FSIPC::RequestBuf rbuf = {};
 
     while(true)
     {
@@ -95,7 +85,6 @@ void* FSP::Registration(void* params)
                 .pid = rbuf.pid,
                 .uid = rbuf.uid,
                 .qid = rbuf.qid,
-                .opened = { 0 },
             });
 
             pthread_create(&processes.back().t, NULL, ServiceRedirect, &p);
@@ -111,7 +100,7 @@ void* FSP::Service(void* params)
     const int p_idx = ((ServiceThreadParams*)params)->proc_idx;
     sem_post(&copy_sem);
 
-    FS_IPC::CommandBuf cbuf;
+    FSIPC::CommandBuf cbuf;
     bool end = false;
     while(!end)
     {
@@ -133,49 +122,63 @@ void* FSP::Service(void* params)
         {
             switch (cbuf.mtype)
             {
-                case FS_IPC::Type::Open:
+                case FSIPC::Type::Open:
                 {
-                    FS_IPC::OpenParameters p;
+                    FSIPC::OpenParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Open(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Close:
+                case FSIPC::Type::Close:
                 {
-                    FS_IPC::CloseParameters p;
+                    FSIPC::CloseParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Close(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Read:
+                case FSIPC::Type::Read:
                 {
-                    FS_IPC::ReadParameters p;
+                    FSIPC::ReadParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Read(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Write:
+                case FSIPC::Type::Write:
                 {
-                    FS_IPC::WriteParameters p;
+                    FSIPC::WriteParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Write(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Create:
+                case FSIPC::Type::Create:
                 {
-                    FS_IPC::CreateParameters p;
+                    FSIPC::CreateParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Create(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Remove:
+                case FSIPC::Type::Remove:
                 {
-                    FS_IPC::RemoveParameters p;
+                    FSIPC::RemoveParameters p;
                     memcpy(&p, cbuf.params, sizeof(p));
                     Remove(p_idx, p);
                     break;
                 }
-                case FS_IPC::Type::Exit:
+                case FSIPC::Type::List:
+                {
+                    FSIPC::ListParameters p;
+                    memcpy(&p, cbuf.params, sizeof(p));
+                    List(p_idx, p);
+                    break;
+                }
+                case FSIPC::Type::ErrorInfo:
+                {
+                    FSIPC::ErrorInfoParameters p;
+                    memcpy(&p, cbuf.params, sizeof(p));
+
+                    break;
+                }
+                case FSIPC::Type::Exit:
                 {
                     return NULL;
                     break;
@@ -186,38 +189,58 @@ void* FSP::Service(void* params)
     return NULL;
 }
 
-void FSP::Open(int p_idx, FS_IPC::OpenParameters p)
+void FSP::Open(int p_idx, FSIPC::OpenParameters p)
 {
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] Open ";
+
     const char* path = (char*)shmat(p.path_shmid, NULL, 0);
     if(path == (char*)-1)
     {
         FS_RETURN(-1);
     }
-    int fd = inf.Open(path);
-    shmdt(path);
+
+    log_stream << "[Path] " << path << " ";
+
+    const int fd = inf.Open(path);
     if(fd == -1)
     {
+        shmdt(path);
         FS_RETURN(-1);
     }
+    shmdt(path);
 
-    int f_idx = processes[p_idx].opened.size();
+    const int f_idx = processes[p_idx].opened.size();
     processes[p_idx].opened.push_back(fd);
+
+    log_stream << "[FD] " << fd << " [F_IDX] " << f_idx << std::endl;
+    std::cout << log_stream.str();
+
     FS_RETURN(f_idx);
 }
 
-void FSP::Close(int p_idx, FS_IPC::CloseParameters p)
+void FSP::Close(int p_idx, FSIPC::CloseParameters p)
 {
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] Close ";
+
     if(p.f_idx < 0 || p.f_idx >= processes[p_idx].opened.size())
     {
         FS_RETURN(-1);
     }
 
+    log_stream << "[F_IDX] " << p.f_idx << std::endl;
+    std::cout << log_stream.str();
+
     inf.Close(processes[p_idx].opened[p.f_idx]);
     FS_RETURN(0);
 }
 
-void FSP::Read(int p_idx, FS_IPC::ReadParameters p)
+void FSP::Read(int p_idx, FSIPC::ReadParameters p)
 {
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] Read ";
+
     if(p.f_idx < 0 || p.f_idx >= processes[p_idx].opened.size())
     {
         FS_RETURN(-1);
@@ -229,13 +252,20 @@ void FSP::Read(int p_idx, FS_IPC::ReadParameters p)
         FS_RETURN(-1);
     }
 
-    int num = inf.Read(processes[p_idx].opened[p.f_idx], buf, 0, p.size);
+    const int num = inf.Read(processes[p_idx].opened[p.f_idx], buf, 0, p.size);
+    
+    log_stream << "[F_IDX] " << p.f_idx << " [Num] " << num << std::endl;
+    std::cout << log_stream.str();
+
     shmdt(buf);
     FS_RETURN(num);
 }
 
-void FSP::Write(int p_idx, FS_IPC::WriteParameters p)
+void FSP::Write(int p_idx, FSIPC::WriteParameters p)
 {
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] Write [F_IDX] " << p.f_idx << " [size] " << p.size << " ";
+
     if(p.f_idx < 0 || p.f_idx >= processes[p_idx].opened.size())
     {
         FS_RETURN(-1);
@@ -247,23 +277,28 @@ void FSP::Write(int p_idx, FS_IPC::WriteParameters p)
         FS_RETURN(-1);
     }
 
-    int num = inf.Write(processes[p_idx].opened[p.f_idx], buf, 0, sizeof(buf));
+    const int num = inf.Write(processes[p_idx].opened[p.f_idx], buf, 0, p.size);
+
+    log_stream << "[Num] " << num << std::endl;
+    std::cout << log_stream.str();
+
     shmdt(buf);
     FS_RETURN(num);
 }
 
-void FSP::Create(int p_idx, FS_IPC::CreateParameters p)
+void FSP::Create(int p_idx, FSIPC::CreateParameters p)
 {
-    if(p.f_idx < 0 || p.f_idx >= processes[p_idx].opened.size())
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] Create [Type] " << p.etype << " ";
+
+    const char* path = (char*)shmat(p.path_shmid, NULL, 0);
+    if(path == (char*)-1)
     {
         FS_RETURN(-1);
     }
 
-    const char* name = (char*)shmat(p.name_shmid, NULL, 0);
-    if(name == (char*)-1)
-    {
-        FS_RETURN(-1);
-    }
+    log_stream << "[Path] " << path << std::endl;
+    std::cout << log_stream.str();
 
     FS::ElementType e;
     if(p.etype == 'F')
@@ -276,33 +311,76 @@ void FSP::Create(int p_idx, FS_IPC::CreateParameters p)
     }
     else
     {
+        shmdt(path);
         FS_RETURN(-1);
     }
 
-    int res = (int)inf.Add(processes[p_idx].opened[p.f_idx], name, e, processes[p_idx].uid, p.permissions);
+    int res = (int)inf.Add(path, e, processes[p_idx].uid, p.permissions);
+    shmdt(path);
     FS_RETURN(res);
 }
 
-void FSP::Remove(int p_idx, FS_IPC::RemoveParameters p)
+void FSP::Remove(int p_idx, FSIPC::RemoveParameters p)
 {
+    const char* path = (char*)shmat(p.path_shmid, NULL, 0);
+    if(path == (char*)-1)
+    {
+        FS_RETURN(-1);
+    }
+    bool res = inf.Remove(path);
+    shmdt(path);
+    FS_RETURN(res);
+}
+
+void FSP::List(int p_idx, FSIPC::ListParameters p)
+{
+    std::ostringstream log_stream;
+    log_stream << "[" << p_idx << "] List [F_IDX] " << p.f_idx << " ";
+
     if(p.f_idx < 0 || p.f_idx >= processes[p_idx].opened.size())
     {
         FS_RETURN(-1);
     }
-
-    const char* name = (char*)shmat(p.name_shmid, NULL, 0);
-    if(name == (char*)-1)
+    
+    char* shm = (char*)shmat(p.listing_shmid, NULL, 0);
+    if(shm == (char*)-1)
     {
         FS_RETURN(-1);
     }
 
-    inf.Remove(processes[p_idx].opened[p.f_idx], name);
-    FS_RETURN(0);
+    const auto list = inf.List(processes[p_idx].opened[p.f_idx]);
+    std::ostringstream list_stream;
+    const std::string path = inf.GetPathString(processes[p_idx].opened[p.f_idx]);
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        std::string child_path = path;
+        if(child_path.back() != '/')
+            child_path += "/";
+        child_path += list[i];
+        int fd = inf.Open(child_path);
+        list_stream << "[" << (inf.GetType(fd) == FS::ElementType::Directory ? 'D' : 'F')  << "]"<< list[i] << " ";
+        inf.Close(fd);
+    }
+
+    const std::string& res = list_stream.str();
+    strncpy(shm, res.c_str(), p.size);
+    shmdt(shm);
+    int retval = std::min(int(res.size()), p.size);
+
+    log_stream << "[Num] " << retval << std::endl;
+    std::cout << log_stream.str();
+
+    FS_RETURN(retval + 1);
+}
+
+void FSP::ErrorInfo(int p_idx, FSIPC::ErrorInfoParameters p)
+{
+    
 }
 
 void FSP::ReturnValue(int p_idx, int val)
 {
-    FS_IPC::ReturnBuf rbuf = { .mtype = 10, .retval = val };
+    FSIPC::ReturnBuf rbuf = { .mtype = 10, .retval = val };
     if(msgsnd(processes[p_idx].qid, &rbuf, sizeof(rbuf.retval), 0) == -1)
     {
         perror("msgsnd");

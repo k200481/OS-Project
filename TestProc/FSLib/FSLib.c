@@ -27,7 +27,7 @@ void FS_Init()
 		exit(EXIT_FAILURE);
 	}
 
-	qid = msgget(12346, IPC_CREAT | 0666);
+	qid = msgget(getpid(), IPC_CREAT | 0666);
 	if(qid == -1)
 	{
 		perror("[Init 2] msgget");
@@ -68,11 +68,11 @@ void FS_Exit()
     msgctl(qid, IPC_RMID, NULL);
 }
 
-int FS_Create(int fd, char type, const char* name, int permissions)
+int FS_Create(const char* path, char type, int permissions)
 {
 	struct CommandBuf cbuf = { .mtype = CommandType_Create };
 
-    const int shmid = GetNewSHM(strlen(name) + 1, 0666);
+    const int shmid = GetNewSHM(strlen(path) + 1, 0666);
     if(shmid == -1)
     {
         perror("[Create 1] shmget");
@@ -80,13 +80,12 @@ int FS_Create(int fd, char type, const char* name, int permissions)
     }
 
     char* shm = shmat(shmid, NULL, 0);
-    strncpy(shm, name, 255);
+    strncpy(shm, path, 255);
     shmdt(shm);
 
     struct CreateParameters params = { 
         .etype = type, 
-        .f_idx = fd, 
-        .name_shmid = shmid, 
+        .path_shmid = shmid, 
         .permissions = permissions 
     };
     
@@ -112,6 +111,45 @@ int FS_Create(int fd, char type, const char* name, int permissions)
     return rbuf.retval;
 }
 
+int FS_Remove(const char* path)
+{
+    struct CommandBuf cbuf = { .mtype = CommandType_Remove };
+    int shmid = GetNewSHM(strlen(path) + 1, 0666);
+    if(shmid == -1)
+    {
+        perror("[Remove 1] smget");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    char* shm = (char*)shmat(shmid, NULL, 0);
+    strcpy(shm, path);
+    shmdt(shm);
+
+    struct RemoveParameters params = {
+        .path_shmid = shmid
+    };
+
+    memcpy(&cbuf.mtext, &params, sizeof(params));
+
+    if(msgsnd(qid, &cbuf, sizeof(cbuf.mtext), 0) == -1)
+    {
+        perror("[Remove 2] msgsnd");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReturnBuf rbuf;
+    if(msgrcv(qid, &rbuf, sizeof(rbuf.retval), 10, 0) == -1)
+    {
+        perror("[Remove 3] msgrcv");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+    shmctl(shmid, IPC_RMID, NULL);
+    return rbuf.retval;
+}
+
 int FS_Open(const char* path)
 {
 	struct CommandBuf cbuf = { .mtype = CommandType_Open };
@@ -120,7 +158,6 @@ int FS_Open(const char* path)
     if(shmid == -1)
     {
         perror("[Open 1] shmget");
-        shmctl(shmid, IPC_RMID, NULL);
         exit(EXIT_FAILURE);
     }
 
@@ -148,27 +185,165 @@ int FS_Open(const char* path)
         shmctl(shmid, IPC_RMID, NULL);
         exit(EXIT_FAILURE);
     }
+    shmctl(shmid, IPC_RMID, NULL);
     return rbuf.retval;
 }
 
 int FS_Close(int fd)
 {
-	
+	struct CommandBuf cbuf = { .mtype = CommandType_Close };
+    struct CloseParameters params = { .f_idx = fd };
+    memcpy(cbuf.mtext, &params, sizeof(params));
+    if(msgsnd(qid, &cbuf, sizeof(cbuf.mtext), 0) == -1)
+    {
+        perror("[Close 1] msgsnd");
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReturnBuf rbuf;
+    if(msgrcv(qid, &rbuf, sizeof(rbuf.retval), 10, 0) == -1)
+    {
+        perror("[Close 2] msgrcv");
+        exit(EXIT_FAILURE);
+    }
+    return rbuf.retval;
 }
 
 int FS_Read(int fd, char* buf, int size)
 {
-	
+	struct CommandBuf cbuf = { .mtype = CommandType_Read };
+    
+    const int shmid = GetNewSHM(size, 0666);
+    if(shmid == -1)
+    {
+        perror("[Read 1] shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReadParameters params = { 
+        .f_idx = fd,
+        .buf_shmid = shmid,
+        .size = size
+    };
+
+    memcpy(cbuf.mtext, &params, sizeof(params));
+
+    if(msgsnd(qid, &cbuf, sizeof(cbuf.mtext), 0) == -1)
+    {
+        perror("[Read 2] msgsnd");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReturnBuf rbuf;
+    if(msgrcv(qid, &rbuf, sizeof(rbuf.retval), 10, 0) == -1)
+    {
+        perror("[Read 3] msgrcv");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    if(rbuf.retval > 0)
+    {
+        char* shm = shmat(shmid, NULL, 0);
+        memcpy(buf, shm, rbuf.retval);
+        shmdt(shm);
+    }
+
+    shmctl(shmid, IPC_RMID, NULL);
+    return rbuf.retval;
 }
 
 int FS_Write(int fd, char* buf, int size)
 {
-	
+	struct CommandBuf cbuf = { .mtype = CommandType_Write };
+    
+    const int shmid = GetNewSHM(size, 0666);
+    if(shmid == -1)
+    {
+        perror("[Read 1] shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    char* shm = shmat(shmid, NULL, 0);
+    memcpy(shm, buf, size);
+    shmdt(shm);
+
+    struct WriteParameters params = { 
+        .f_idx = fd,
+        .buf_shmid = shmid,
+        .size = size
+    };
+
+    memcpy(cbuf.mtext, &params, sizeof(params));
+
+    if(msgsnd(qid, &cbuf, sizeof(cbuf.mtext), 0) == -1)
+    {
+        perror("[Read 2] msgsnd");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReturnBuf rbuf;
+    if(msgrcv(qid, &rbuf, sizeof(rbuf.retval), 10, 0) == -1)
+    {
+        perror("[Read 3] msgrcv");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    shmctl(shmid, IPC_RMID, NULL);
+    return rbuf.retval;
 }
 
 int FS_List(int fd, char* buf, int max_size)
 {
-	
+	struct CommandBuf cbuf = { .mtype = CommandType_List };
+    
+    const int shmid = GetNewSHM(max_size, 0666);
+    if(shmid == -1)
+    {
+        perror("[Read 1] shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    struct ListParameters params = { 
+        .f_idx = fd,
+        .listing_shmid = shmid,
+        .size = max_size
+    };
+
+    memcpy(cbuf.mtext, &params, sizeof(params));
+
+    if(msgsnd(qid, &cbuf, sizeof(cbuf.mtext), 0) == -1)
+    {
+        perror("[Read 2] msgsnd");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    struct ReturnBuf rbuf;
+    if(msgrcv(qid, &rbuf, sizeof(rbuf.retval), 10, 0) == -1)
+    {
+        perror("[Read 3] msgrcv");
+        shmctl(shmid, IPC_RMID, NULL);
+        exit(EXIT_FAILURE);
+    }
+
+    if(rbuf.retval > 0)
+    {
+        char* shm = shmat(shmid, NULL, 0);
+        memcpy(buf, shm, rbuf.retval);
+        shmdt(shm);
+    }
+
+    shmctl(shmid, IPC_RMID, NULL);
+    return rbuf.retval;
+}
+
+int FS_GetErrorMsg(char* buf, int max_size)
+{
+
 }
 
 static int GetNewSHM(int size, int permissions)

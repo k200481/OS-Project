@@ -21,6 +21,9 @@ namespace FS
         int GetTimeModified() const;
         int GetTimeAccessed() const;
 
+        void FreeDatablocks(BlockManager& bm);
+        void FreeInodeBlock(BlockManager& bm);
+
         // good idea to make virtual destructors for classes meant to be inherited
         virtual ~FSElement() = default;
 	protected:
@@ -56,6 +59,8 @@ namespace FS
 		mutable Inode inode;
         // the block where the inode is stored
 		unsigned int inode_block;
+        //
+        bool isValid = true;
     private:
         /* reader-writer problem stuff */
 

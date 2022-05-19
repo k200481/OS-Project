@@ -25,7 +25,7 @@ enum CommandType
     CommandType_Remove,
     CommandType_List,
     CommandType_Exit,
-    CommandType_ChangeShmId,
+    CommandType_ErrorInfo,
 };
 
 struct CommandBuf
@@ -66,16 +66,14 @@ struct WriteParameters
 
 struct CreateParameters
 {
-    int f_idx;
     char etype;
-    int name_shmid;
+    int path_shmid;
     int permissions;
 };
 
 struct RemoveParameters
 {
-    int f_idx;
-    int name_shmid;
+    int path_shmid;
 };
 
 struct ListParameters

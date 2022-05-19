@@ -28,10 +28,14 @@ namespace FS
         // get rhe number of entries
 		unsigned int GetNumEntries() const;
         // ge ta list of the entries in the directory with their metadata
-		std::vector<data_pair> List(BlockManager& bm) const;
+		std::vector<std::string> List(BlockManager& bm) const;
         // open a FSElement in the drectroy
         FSElementPtr Open(BlockManager& bm, const std::string& filename);
+        // 
+        void Remove(BlockManager& bm, const std::string& filename);
 
+        // check if an entry with the name exists
+        bool EntryExists(const BlockManager& bm, const std::string& filename);
 	private:
         /* kept hidden so only root can be loaded directly, all other directories must be loaded from root */
 
@@ -44,8 +48,6 @@ namespace FS
 
         // get the entry structure at the given index
 		Entry GetEntry(const BlockManager& bm, unsigned int idx) const;
-        // check if an entry with the name exists
-        bool EntryExists(const BlockManager& bm, const std::string& filename);
         // get the index of the entry with the given name
         int GetEntryIdx(const BlockManager& bm, const std::string& filename) const;
 

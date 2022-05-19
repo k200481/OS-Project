@@ -120,6 +120,17 @@ unsigned int FS::Inode::Read(const BlockManager& bm, unsigned int offset, void* 
 	return data_size;
 }
 
+void Inode::FreeAll(BlockManager& bm, unsigned int inode_block)
+{
+    for(int i = 0; i < num_blocks; i++)
+    {
+        bm.FreeBlock(GetBlockNum(bm, i));
+    }
+    num_blocks = 0;
+    mtd.size = 0;
+    Save(bm, inode_block);
+}
+
 unsigned int FS::Inode::GetSize() const
 {
 	return mtd.size;
